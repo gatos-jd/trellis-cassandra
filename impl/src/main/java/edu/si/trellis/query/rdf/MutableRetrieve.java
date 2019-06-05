@@ -1,7 +1,7 @@
 package edu.si.trellis.query.rdf;
 
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 import edu.si.trellis.MutableReadConsistency;
 
@@ -18,7 +18,7 @@ import org.apache.commons.rdf.api.Quad;
 public class MutableRetrieve extends ResourceQuery {
 
     @Inject
-    public MutableRetrieve(Session session, @MutableReadConsistency ConsistencyLevel consistency) {
+    public MutableRetrieve(CqlSession session, @MutableReadConsistency ConsistencyLevel consistency) {
         super(session, "SELECT quads FROM " + MUTABLE_TABLENAME + " WHERE identifier = :identifier;", consistency);
     }
 

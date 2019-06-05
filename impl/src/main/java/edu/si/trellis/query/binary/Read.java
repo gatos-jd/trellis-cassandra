@@ -1,8 +1,8 @@
 package edu.si.trellis.query.binary;
 
-import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
 
 import edu.si.trellis.BinaryReadConsistency;
 
@@ -19,7 +19,7 @@ import org.apache.commons.rdf.api.IRI;
 public class Read extends BinaryReadQuery {
 
     @Inject
-    public Read(Session session, @BinaryReadConsistency ConsistencyLevel consistency) {
+    public Read(CqlSession session, @BinaryReadConsistency ConsistencyLevel consistency) {
         super(session, "SELECT chunkIndex FROM " + BINARY_TABLENAME + " WHERE identifier = :identifier;", consistency);
     }
 
@@ -28,7 +28,7 @@ public class Read extends BinaryReadQuery {
      * @return An {@link InputStream} of bytes as requested. The {@code skip} method of this {@code InputStream} is
      *         guaranteed to skip as many bytes as asked.
      * 
-     * @see BinaryReadQuery#retrieve(IRI, com.datastax.driver.core.Statement)
+     * @see BinaryReadQuery#retrieve(IRI, BoundStatement)
      */
     public InputStream execute(IRI id) {
         BoundStatement bound = preparedStatement().bind().set("identifier", id, IRI.class);

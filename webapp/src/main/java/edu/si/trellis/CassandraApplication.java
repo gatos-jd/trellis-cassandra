@@ -1,11 +1,11 @@
 package edu.si.trellis;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableSet;
 import static org.apache.tamaya.Configuration.current;
 import static org.apache.tamaya.Configuration.setCurrent;
 import static org.slf4j.LoggerFactory.getLogger;
 import static org.trellisldp.http.core.HttpConstants.CONFIG_HTTP_PUT_UNCONTAINED;
-
-import com.google.common.collect.ImmutableSet;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +13,7 @@ import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -24,7 +24,6 @@ import javax.inject.Inject;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import org.apache.tamaya.ConfigException;
 import org.apache.tamaya.format.ConfigurationFormats;
 import org.apache.tamaya.inject.api.Config;
 import org.apache.tamaya.spi.PropertySource;
@@ -115,6 +114,6 @@ public class CassandraApplication extends Application {
 
     @Override
     public Set<Object> getSingletons() {
-    	return ImmutableSet.of(ldpHttpResource, httpFilter, webDav, webDavRequestFilter, webDavResponseFilter);
+    	return unmodifiableSet(new HashSet<>(asList(ldpHttpResource, httpFilter, webDav, webDavRequestFilter, webDavResponseFilter)));
     }
 }

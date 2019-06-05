@@ -3,11 +3,14 @@ package edu.si.trellis.query;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import com.datastax.driver.core.*;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
@@ -23,7 +26,7 @@ public abstract class CassandraQuery {
     /**
      * A Cassandra session for use with this query.
      */
-    protected final Session session;
+    protected final CqlSession session;
 
     /**
      * 
@@ -36,6 +39,8 @@ public abstract class CassandraQuery {
 
     private final PreparedStatement preparedStatement;
 
+    private final ConsistencyLevel defaultConsistency;
+
     /**
      * @return the {@link PreparedStatement} that underlies this query
      */
@@ -44,23 +49,24 @@ public abstract class CassandraQuery {
     }
 
     /**
-     * @param session a {@link Session} to the Cassandra cluster
+     * @param session a {@link CqlSession} to the Cassandra cluster
      * @param queryString the CQL string for this query
      * @param consistency the {@link ConsistencyLevel} to use for executions of this query
      */
-    public CassandraQuery(Session session, String queryString, ConsistencyLevel consistency) {
+    public CassandraQuery(CqlSession session, String queryString, ConsistencyLevel consistency) {
         this.session = session;
-        this.preparedStatement = session.prepare(queryString).setConsistencyLevel(consistency);
+        this.preparedStatement = session.prepare(queryString);
+        this.defaultConsistency = consistency;
     }
 
     /**
      * @param statement the CQL statement to execute
      * @return when and whether the statement completed
      */
-    protected CompletableFuture<Void> executeWrite(BoundStatement statement) {
-        String queryString = statement.preparedStatement().getQueryString();
+    protected CompletionStage<Void> executeWrite(BoundStatement statement) {
+        String queryString = statement.getPreparedStatement().getQuery();
         log.debug("Executing CQL write: {}", queryString);
-        return translate(session.executeAsync(statement), writeWorkers)
+        return session.executeAsync(statement.setConsistencyLevel(defaultConsistency))
                         .thenAccept(r -> log.debug("Executed CQL write: {}", queryString));
     }
 
@@ -68,31 +74,15 @@ public abstract class CassandraQuery {
      * @param statement the CQL statement to execute
      * @return the results of that statement
      */
-    protected CompletableFuture<ResultSet> executeRead(Statement statement) {
-        return translate(session.executeAsync(statement), readWorkers);
+    protected CompletionStage<AsyncResultSet> executeRead(BoundStatement statement) {
+        return session.executeAsync(statement.setConsistencyLevel(defaultConsistency));
     }
 
     /**
      * @param statement the CQL statement to execute
      * @return the results of that statement
      */
-    protected ResultSet executeSyncRead(Statement statement) {
+    protected ResultSet executeSyncRead(BoundStatement statement) {
         return session.execute(statement);
-    }
-
-    private <T> CompletableFuture<T> translate(ListenableFuture<T> future, Executor workers) {
-        CompletableFuture<T> result = new CompletableFuture<>();
-        future.addListener(() -> {
-            try {
-                result.complete(future.get()); // future::get will not block; see ListenableFuture#addListener
-            } catch (InterruptedException e) {
-                result.completeExceptionally(e);
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException e) {
-                log.error(e.getLocalizedMessage(), e);
-                result.completeExceptionally(e.getCause());
-            }
-        }, workers);
-        return result;
     }
 }

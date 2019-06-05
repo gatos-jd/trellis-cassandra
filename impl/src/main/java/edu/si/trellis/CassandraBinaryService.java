@@ -8,6 +8,7 @@ import edu.si.trellis.query.binary.*;
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
@@ -68,13 +69,13 @@ public class CassandraBinaryService implements BinaryService {
     }
 
     @Override
-    public CompletableFuture<Binary> get(IRI id) {
+    public CompletionStage<Binary> get(IRI id) {
         log.debug("Retrieving binary content from: {}", id);
         return get.execute(id).thenApply(r -> new CassandraBinary(id, read, readRange, r.getInt("chunkSize")));
     }
 
     @Override
-    public CompletableFuture<Void> setContent(BinaryMetadata meta, InputStream stream) {
+    public CompletionStage<Void> setContent(BinaryMetadata meta, InputStream stream) {
         log.debug("Recording binary content under: {}", meta.getIdentifier());
         final int chunkSize;
         if (meta.getHints() == null) chunkSize = defaultChunkLength;
@@ -90,7 +91,7 @@ public class CassandraBinaryService implements BinaryService {
     }
 
     @SuppressWarnings("resource")
-    private CompletableFuture<Long> setChunk(BinaryMetadata meta, InputStream data, AtomicInteger chunkIndex,
+    private CompletionStage<Long> setChunk(BinaryMetadata meta, InputStream data, AtomicInteger chunkIndex,
                     int chunkLength) {
         IRI id = meta.getIdentifier();
         log.debug("Recording chunk {} of binary content under: {}", chunkIndex.get(), id);
@@ -108,7 +109,7 @@ public class CassandraBinaryService implements BinaryService {
     }
 
     @Override
-    public CompletableFuture<Void> purgeContent(IRI identifier) {
+    public CompletionStage<Void> purgeContent(IRI identifier) {
         return delete.execute(identifier);
     }
 

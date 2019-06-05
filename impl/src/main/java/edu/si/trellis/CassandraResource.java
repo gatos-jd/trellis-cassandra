@@ -9,7 +9,7 @@ import static org.trellisldp.vocabulary.LDP.PreferContainment;
 import static org.trellisldp.vocabulary.LDP.contains;
 import static org.trellisldp.vocabulary.LDP.getSuperclassOf;
 
-import com.datastax.driver.core.Row;
+import com.datastax.oss.driver.api.core.cql.Row;
 
 import edu.si.trellis.query.rdf.BasicContainment;
 import edu.si.trellis.query.rdf.ImmutableRetrieve;

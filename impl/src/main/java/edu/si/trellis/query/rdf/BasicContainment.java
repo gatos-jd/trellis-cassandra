@@ -1,8 +1,8 @@
 package edu.si.trellis.query.rdf;
 
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
 
 import edu.si.trellis.MutableReadConsistency;
 
@@ -16,7 +16,7 @@ import org.apache.commons.rdf.api.IRI;
 public class BasicContainment extends ResourceQuery {
 
     @Inject
-    public BasicContainment(Session session, @MutableReadConsistency ConsistencyLevel consistency) {
+    public BasicContainment(CqlSession session, @MutableReadConsistency ConsistencyLevel consistency) {
         super(session, "SELECT identifier AS contained FROM " + BASIC_CONTAINMENT_TABLENAME
                         + " WHERE container = :container ;", consistency);
     }

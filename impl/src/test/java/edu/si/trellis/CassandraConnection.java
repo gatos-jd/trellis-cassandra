@@ -1,22 +1,21 @@
 package edu.si.trellis;
 
-import static com.datastax.driver.core.Cluster.builder;
-import static com.datastax.driver.core.ConsistencyLevel.ONE;
+import static com.datastax.oss.driver.api.core.DefaultConsistencyLevel.ONE;
+import static com.datastax.oss.driver.api.core.type.codec.TypeCodecs.TIMESTAMP;
 import static edu.si.trellis.DatasetCodec.datasetCodec;
 import static edu.si.trellis.IRICodec.iriCodec;
 import static edu.si.trellis.InputStreamCodec.inputStreamCodec;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import com.datastax.driver.core.*;
-import com.datastax.driver.extras.codecs.date.SimpleTimestampCodec;
-import com.datastax.driver.extras.codecs.jdk8.InstantCodec;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
 
-import edu.si.trellis.CassandraBinaryService;
-import edu.si.trellis.CassandraResourceService;
 import edu.si.trellis.query.rdf.GetMemento;
 import edu.si.trellis.query.rdf.MementoMutableRetrieve;
 import edu.si.trellis.query.rdf.Mementoize;
 import edu.si.trellis.query.rdf.Mementos;
+
+import java.net.InetSocketAddress;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -35,9 +34,7 @@ class CassandraConnection implements AfterAllCallback, BeforeAllCallback {
 
     private static final String keyspace = "trellis";
 
-    private Cluster cluster;
-
-    private Session session;
+    private CqlSession session;
 
     CassandraResourceService resourceService;
 
@@ -56,12 +53,11 @@ class CassandraConnection implements AfterAllCallback, BeforeAllCallback {
     @Override
     public void beforeAll(ExtensionContext context) {
         log.debug("Trying Cassandra connection at: {}:{}", contactAddress, contactPort);
-        this.cluster = builder().withoutMetrics().addContactPoint(contactAddress).withPort(contactPort).build();
-        codecRegistry().register(inputStreamCodec, iriCodec, datasetCodec, InstantCodec.instance,
-                        SimpleTimestampCodec.instance);
-        QueryLogger queryLogger = QueryLogger.builder().build();
-        cluster.register(queryLogger);
-        this.session = cluster.connect("trellis");
+        this.session = CqlSession.builder()
+                        .addContactPoint(new InetSocketAddress(contactAddress, contactPort))
+                        .withLocalDatacenter("test")
+                        .addTypeCodecs(inputStreamCodec, iriCodec, datasetCodec, TIMESTAMP)
+                        .withKeyspace("trellis").build();
         this.resourceService = new CassandraResourceService(new edu.si.trellis.query.rdf.Delete(session, ONE),
                         new edu.si.trellis.query.rdf.Get(session, ONE),
                         new edu.si.trellis.query.rdf.ImmutableInsert(session, testConsistency),
@@ -91,14 +87,9 @@ class CassandraConnection implements AfterAllCallback, BeforeAllCallback {
         for (String q : CLEANOUT_QUERIES) session.execute(q);
     }
 
-    private CodecRegistry codecRegistry() {
-        return cluster.getConfiguration().getCodecRegistry();
-    }
-
     @Override
     public void afterAll(ExtensionContext context) {
         if (cleanAfter) cleanOut();
         session.close();
-        cluster.close();
     }
 }

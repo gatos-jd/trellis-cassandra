@@ -1,7 +1,7 @@
 package edu.si.trellis.query.rdf;
 
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 import edu.si.trellis.MutableReadConsistency;
 
@@ -19,7 +19,7 @@ import org.apache.commons.rdf.api.Quad;
 public class MementoMutableRetrieve extends ResourceQuery {
 
     @Inject
-    public MementoMutableRetrieve(Session session, @MutableReadConsistency ConsistencyLevel consistency) {
+    public MementoMutableRetrieve(CqlSession session, @MutableReadConsistency ConsistencyLevel consistency) {
         super(session, "SELECT quads FROM " + MEMENTO_MUTABLE_TABLENAME
                         + " WHERE identifier = :identifier AND mementomodified <= :time " + "LIMIT 1 ALLOW FILTERING;",
                         consistency);

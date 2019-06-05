@@ -5,11 +5,12 @@ import static org.apache.jena.riot.Lang.NQUADS;
 import static org.apache.jena.riot.RDFDataMgr.read;
 import static org.apache.jena.riot.RDFDataMgr.writeQuads;
 
-import com.datastax.driver.core.DataType;
-import com.datastax.driver.core.ProtocolVersion;
-import com.datastax.driver.core.TypeCodec;
-import com.datastax.driver.core.exceptions.InvalidTypeException;
-import com.datastax.driver.core.utils.Bytes;
+import com.datastax.oss.driver.api.core.ProtocolVersion;
+import com.datastax.oss.driver.api.core.type.DataType;
+import com.datastax.oss.driver.api.core.type.DataTypes;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
+import com.datastax.oss.driver.api.core.type.reflect.GenericType;
+import com.datastax.oss.protocol.internal.util.Bytes;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -22,18 +23,16 @@ import org.apache.commons.rdf.jena.JenaRDF;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.riot.RiotException;
 
-class DatasetCodec extends TypeCodec<Dataset> {
+class DatasetCodec implements TypeCodec<Dataset> {
     
+    private static final GenericType<Dataset> TYPE_OF_DATASET = GenericType.of(Dataset.class);
+
     static final DatasetCodec datasetCodec = new DatasetCodec();
 
     private static final JenaRDF rdf = new JenaRDF();
     
-    private DatasetCodec() {
-        super(DataType.text(), Dataset.class);
-    }
-
     @Override
-    public ByteBuffer serialize(Dataset dataset, ProtocolVersion protocolVersion) {
+    public ByteBuffer encode(Dataset dataset, ProtocolVersion protocolVersion) {
         if (dataset == null || dataset.size() == 0) return null;
         return ByteBuffer.wrap(toNQuads(dataset));
     }
@@ -43,14 +42,14 @@ class DatasetCodec extends TypeCodec<Dataset> {
             writeQuads(bytes, dataset.stream().map(rdf::asJenaQuad).iterator());
             return bytes.toByteArray();
         } catch (RiotException e) {
-            throw new InvalidTypeException("Dataset is impossible to serialize!", e);
+            throw new IllegalArgumentException("Dataset is impossible to serialize!", e);
         } catch (IOException e) {
             throw new UncheckedIOException("Dataset could not be serialized!", e);
         } 
     }
 
     @Override
-    public Dataset deserialize(ByteBuffer bytes, ProtocolVersion protocolVersion) {
+    public Dataset decode(ByteBuffer bytes, ProtocolVersion protocolVersion) {
         return bytes == null ? rdf.createDataset() : fromNQuads(Bytes.getArray(bytes));
     }
 
@@ -60,7 +59,7 @@ class DatasetCodec extends TypeCodec<Dataset> {
             read(dataset, new ByteArrayInputStream(bytes), null, NQUADS);
             return rdf.asDataset(dataset);
         } catch (RiotException e) {
-            throw new InvalidTypeException("Dataset is impossible to deserialize!", e);
+            throw new IllegalArgumentException("Dataset is impossible to deserialize!", e);
         }
     }
 
@@ -74,5 +73,15 @@ class DatasetCodec extends TypeCodec<Dataset> {
     public String format(Dataset dataset) {
         if (dataset == null || dataset.size() == 0) return null;
         return new String(toNQuads(dataset), UTF_8);
+    }
+
+    @Override
+    public GenericType<Dataset> getJavaType() {
+        return TYPE_OF_DATASET;
+    }
+
+    @Override
+    public DataType getCqlType() {
+        return DataTypes.TEXT;
     }
 }

@@ -1,6 +1,8 @@
 package edu.si.trellis;
 
 import static java.time.Instant.now;
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.UUID.randomUUID;
 import static org.slf4j.LoggerFactory.getLogger;
 import static org.trellisldp.api.Metadata.builder;
@@ -11,8 +13,7 @@ import static org.trellisldp.vocabulary.LDP.Container;
 import static org.trellisldp.vocabulary.LDP.NonRDFSource;
 import static org.trellisldp.vocabulary.LDP.RDFSource;
 
-import com.datastax.driver.core.utils.UUIDs;
-import com.google.common.collect.ImmutableSet;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 
 import edu.si.trellis.query.rdf.BasicContainment;
 import edu.si.trellis.query.rdf.Delete;
@@ -24,6 +25,7 @@ import edu.si.trellis.query.rdf.MutableRetrieve;
 import edu.si.trellis.query.rdf.Touch;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
@@ -51,8 +53,13 @@ import org.trellisldp.vocabulary.LDP;
  */
 public class CassandraResourceService extends CassandraBuildingService implements ResourceService {
 
-    private static final ImmutableSet<IRI> SUPPORTED_INTERACTION_MODELS = ImmutableSet.of(LDP.Resource, RDFSource,
-                    NonRDFSource, Container, BasicContainer);
+    private static final Set<IRI> SUPPORTED_INTERACTION_MODELS;
+
+    static {
+        Set<IRI> models = new HashSet<>();
+        models.addAll(asList(LDP.Resource, RDFSource, NonRDFSource, Container, BasicContainer));
+        SUPPORTED_INTERACTION_MODELS = unmodifiableSet(models);
+    }
 
     static final Logger log = getLogger(CassandraResourceService.class);
 
@@ -176,7 +183,7 @@ public class CassandraResourceService extends CassandraBuildingService implement
         String mimeType = binary.flatMap(BinaryMetadata::getMimeType).orElse(null);
         Instant now = now();
 
-        return mutableInsert.execute(ixnModel, mimeType, container, data, now, binaryIdentifier, UUIDs.timeBased(), id);
+        return mutableInsert.execute(ixnModel, mimeType, container, data, now, binaryIdentifier, Uuids.timeBased(), id);
     }
 
     @Override

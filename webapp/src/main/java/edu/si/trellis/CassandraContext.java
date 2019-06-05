@@ -1,15 +1,16 @@
 package edu.si.trellis;
 
-import static com.datastax.driver.core.TypeCodec.bigint;
+import static com.datastax.oss.driver.api.core.type.codec.TypeCodecs.BIGINT;
+import static com.datastax.oss.driver.api.core.type.codec.TypeCodecs.TIMESTAMP;
 import static edu.si.trellis.DatasetCodec.datasetCodec;
 import static edu.si.trellis.IRICodec.iriCodec;
 import static edu.si.trellis.InputStreamCodec.inputStreamCodec;
 import static java.lang.Integer.parseInt;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import com.datastax.driver.core.*;
-import com.datastax.driver.extras.codecs.date.SimpleTimestampCodec;
-import com.datastax.driver.extras.codecs.jdk8.InstantCodec;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -28,7 +29,7 @@ import org.apache.tamaya.inject.api.Config;
 import org.slf4j.Logger;
 
 /**
- * Provides a Cassandra {@link Session} and other context for operating Cassandra-based services.
+ * Provides a Cassandra {@link CqlSession} and other context for operating Cassandra-based services.
  *
  */
 @ApplicationScoped
@@ -110,9 +111,7 @@ public class CassandraContext {
         return rdfWriteConsistency;
     }
 
-    private Cluster cluster;
-
-    private Session session;
+    private CqlSession session;
 
     private final CountDownLatch sessionInitialized = new CountDownLatch(1);
 
@@ -121,8 +120,8 @@ public class CassandraContext {
      */
     private static final int POLL_TIMEOUT = 1000;
 
-    private static final TypeCodec<?>[] STANDARD_CODECS = new TypeCodec<?>[] { SimpleTimestampCodec.instance,
-            inputStreamCodec, iriCodec, datasetCodec, bigint(), InstantCodec.instance };
+    private static final TypeCodec<?>[] STANDARD_CODECS = new TypeCodec<?>[] { inputStreamCodec, iriCodec, datasetCodec,
+            BIGINT, TIMESTAMP };
 
     /**
      * Connect to Cassandra, lazily.
@@ -131,18 +130,15 @@ public class CassandraContext {
     public void connect() {
         log.info("Using Cassandra node address: {} and port: {}", contactAddress, contactPort);
         log.debug("Looking for connection...");
-        this.cluster = Cluster.builder().withTimestampGenerator(new AtomicMonotonicTimestampGenerator())
-                        .withoutJMXReporting().withoutMetrics().addContactPoint(contactAddress)
-                        .withPort(parseInt(contactPort)).build();
-        if (log.isDebugEnabled()) cluster.register(QueryLogger.builder().withMaxParameterValueLength(1000).build());
-        cluster.getConfiguration().getCodecRegistry().register(STANDARD_CODECS);
         Timer connector = new Timer("Cassandra Connection Maker", true);
         log.info("Connecting to Cassandra...");
         connector.schedule(new TimerTask() {
             @Override
             public void run() {
                 if (isPortOpen(contactAddress, contactPort)) {
-                    session = cluster.connect("trellis");
+                    session = CqlSession.builder()
+                                    .addContactPoint(new InetSocketAddress(contactAddress, parseInt(contactPort)))
+                                    .withKeyspace("trellis").addTypeCodecs(STANDARD_CODECS).build();
                     log.info("Connection made and keyspace set to 'trellis'.");
                     sessionInitialized.countDown();
                     this.cancel();
@@ -162,11 +158,11 @@ public class CassandraContext {
     }
 
     /**
-     * @return a {@link Session} for use with {@link CassandraResourceService} (and {@link CassandraBinaryService})
+     * @return a {@link CqlSession} for use against Cassandra
      */
     @Produces
     @ApplicationScoped
-    public Session getSession() {
+    public CqlSession getSession() {
         try {
             sessionInitialized.await();
         } catch (InterruptedException e) {
@@ -183,6 +179,5 @@ public class CassandraContext {
     @PreDestroy
     public void close() {
         session.close();
-        cluster.close();
     }
 }
