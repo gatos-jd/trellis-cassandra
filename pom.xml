@@ -207,6 +207,9 @@
             <!-- Use a load script (after resource filtering). This path is relative to the working module directory
               at a given moment during build. -->
             <script>${project.basedir}/../src/test/resources/load.cql</script>
+            <yaml>
+              endpoint_snitch: PropertyFileSnitch
+            </yaml>
           </configuration>
           <dependencies>
             <dependency>

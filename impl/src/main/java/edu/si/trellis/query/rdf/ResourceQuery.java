@@ -5,9 +5,11 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.Row;
 
+import edu.si.trellis.ResyncResultSet;
 import edu.si.trellis.query.CassandraQuery;
 
 import java.util.Spliterator;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -32,8 +34,9 @@ abstract class ResourceQuery extends CassandraQuery {
     }
 
     protected Stream<Quad> quads(final BoundStatement boundStatement) {
-        final Spliterator<Row> rows = executeSyncRead(boundStatement).spliterator();
+        Spliterator<Row> rows = executeSyncRead(boundStatement).spliterator();
         Stream<Dataset> datasets = StreamSupport.stream(rows, false).map(r -> r.get("quads", Dataset.class));
         return datasets.flatMap(Dataset::stream);
     }
+
 }

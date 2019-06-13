@@ -58,6 +58,7 @@ class CassandraConnection implements AfterAllCallback, BeforeAllCallback {
                         .withLocalDatacenter("test")
                         .addTypeCodecs(inputStreamCodec, iriCodec, datasetCodec, TIMESTAMP)
                         .withKeyspace("trellis").build();
+
         this.resourceService = new CassandraResourceService(new edu.si.trellis.query.rdf.Delete(session, ONE),
                         new edu.si.trellis.query.rdf.Get(session, ONE),
                         new edu.si.trellis.query.rdf.ImmutableInsert(session, testConsistency),

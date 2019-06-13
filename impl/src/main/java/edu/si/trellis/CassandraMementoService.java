@@ -2,6 +2,7 @@ package edu.si.trellis;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.slf4j.LoggerFactory.getLogger;
+import static org.trellisldp.api.TrellisUtils.toDataset;
 
 import com.datastax.oss.driver.api.core.uuid.Uuids;
 
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.trellisldp.api.BinaryMetadata;
 import org.trellisldp.api.MementoService;
 import org.trellisldp.api.Resource;
+import org.trellisldp.api.ResourceService;
 
 /**
  * A {@link MementoService} that stores Mementos in a Cassandra table.
@@ -56,6 +58,11 @@ public class CassandraMementoService extends CassandraBuildingService implements
     }
 
     @Override
+    public CompletionStage<Void> put(ResourceService resourceService, IRI identifier) {
+        return MementoService.super.put(resourceService, identifier);
+    }
+
+    @Override
     public CompletionStage<Void> put(Resource r) {
 
         IRI id = r.getIdentifier();
@@ -64,7 +71,7 @@ public class CassandraMementoService extends CassandraBuildingService implements
         Optional<BinaryMetadata> binary = r.getBinaryMetadata();
         IRI binaryIdentifier = binary.map(BinaryMetadata::getIdentifier).orElse(null);
         String mimeType = binary.flatMap(BinaryMetadata::getMimeType).orElse(null);
-        Dataset data = r.dataset();
+        Dataset data = r.dataset().stream().collect(toDataset());
         Instant modified = r.getModified();
         UUID creation = Uuids.timeBased();
 
