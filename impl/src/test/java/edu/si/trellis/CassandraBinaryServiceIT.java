@@ -41,12 +41,14 @@ class CassandraBinaryServiceIT extends CassandraServiceIT {
         try (InputStream testInput = IOUtils.toInputStream(content, UTF_8)) {
             connection.binaryService.setContent(builder(id).build(), testInput).toCompletableFuture().join();
         }
-        try (InputStream got = connection.binaryService.get(id).toCompletableFuture().join().getContent().toCompletableFuture().join()) {
+        try (InputStream got = connection.binaryService.get(id).toCompletableFuture().join().getContent()
+                        .toCompletableFuture().join()) {
             String reply = IOUtils.toString(got, UTF_8);
             assertEquals(content, reply);
         }
 
-        try (InputStream got = connection.binaryService.get(id).toCompletableFuture().join().getContent(5, 11).toCompletableFuture().join()) {
+        try (InputStream got = connection.binaryService.get(id).toCompletableFuture().join().getContent(5, 11)
+                        .toCompletableFuture().join()) {
             String reply = IOUtils.toString(got, UTF_8);
             assertEquals(content.subSequence(5, 12), reply);
         }
@@ -86,17 +88,17 @@ class CassandraBinaryServiceIT extends CassandraServiceIT {
     }
 
     @Test
-    void varyChunkSizeFromDefault() throws IOException, InterruptedException, ExecutionException {
+    void varyChunkSizeFromDefault() throws IOException {
         IRI id = createIRI();
         final String chunkSize = "10000000";
         final String md5sum = "89c4b71c69f59cde963ce8aa9dbe1617";
         try (FileInputStream testData = new FileInputStream("src/test/resources/test.jpg")) {
             Map<String, List<String>> hints = singletonMap(CASSANDRA_CHUNK_HEADER_NAME, singletonList(chunkSize));
-            connection.binaryService.setContent(builder(id).hints(hints).build(), testData).toCompletableFuture().get();
+            connection.binaryService.setContent(builder(id).hints(hints).build(), testData).toCompletableFuture().join();
         }
 
         CompletableFuture<Binary> got = connection.binaryService.get(id).toCompletableFuture();
-        Binary binary = got.get();
+        Binary binary = got.join();
         assertTrue(got.isDone());
 
         try (InputStream testData = new FileInputStream("src/test/resources/test.jpg");
@@ -114,7 +116,7 @@ class CassandraBinaryServiceIT extends CassandraServiceIT {
                             asList(chunkSize, chunkSize + 1000));
             try {
                 connection.binaryService.setContent(builder(id).hints(hints).build(), testData).toCompletableFuture()
-                                .get();
+                                .join();
                 fail();
             } catch (Exception e) {
                 assertTrue(e instanceof RuntimeTrellisException);

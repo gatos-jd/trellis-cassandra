@@ -1,14 +1,11 @@
 package edu.si.trellis;
 
-import static java.util.concurrent.CompletableFuture.completedFuture;
-
 import edu.si.trellis.query.binary.Read;
 import edu.si.trellis.query.binary.ReadRange;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.io.input.BoundedInputStream;
@@ -45,7 +42,7 @@ public class CassandraBinary implements Binary {
 
     @Override
     public CompletionStage<InputStream> getContent() {
-        return completedFuture(read.execute(id));
+        return read.execute(id);
     }
 
     @Override
@@ -54,13 +51,17 @@ public class CassandraBinary implements Binary {
         int lastChunk = to / chunkLength;
         int chunkStreamStart = from % chunkLength;
         int rangeSize = to - from + 1; // +1 because range is inclusive
-        InputStream retrieve = readRange.execute(id, firstChunk, lastChunk);
-        // skip to fulfill lower end of range
-        try {
-            retrieve.skip(chunkStreamStart);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        } // we needn't check the result; see BinaryReadQuery#retrieve
-        return completedFuture(new BoundedInputStream(retrieve, rangeSize)); // apply limit for upper end of range
+
+        return readRange.execute(id, firstChunk, lastChunk).thenApplyAsync(retrieve -> {
+            try {
+                // skip to fulfill lower end of range
+                // we needn't check the result; see BinaryReadQuery#retrieve
+                retrieve.skip(chunkStreamStart);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return retrieve;
+         // apply limit for upper end of range
+        }).thenApply(retrieve -> new BoundedInputStream(retrieve, rangeSize));
     }
 }

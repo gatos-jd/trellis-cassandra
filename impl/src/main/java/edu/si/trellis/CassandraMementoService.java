@@ -58,11 +58,6 @@ public class CassandraMementoService extends CassandraBuildingService implements
     }
 
     @Override
-    public CompletionStage<Void> put(ResourceService resourceService, IRI identifier) {
-        return MementoService.super.put(resourceService, identifier);
-    }
-
-    @Override
     public CompletionStage<Void> put(Resource r) {
 
         IRI id = r.getIdentifier();

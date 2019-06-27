@@ -7,6 +7,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import edu.si.trellis.BinaryReadConsistency;
 
 import java.io.InputStream;
+import java.util.concurrent.CompletionStage;
 
 import javax.inject.Inject;
 
@@ -25,12 +26,12 @@ public class Read extends BinaryReadQuery {
 
     /**
      * @param id the {@link IRI} for a binary
-     * @return An {@link InputStream} of bytes as requested. The {@code skip} method of this {@code InputStream} is
-     *         guaranteed to skip as many bytes as asked.
+     * @return A {@link CompletionStage} of an {@link InputStream} of bytes as requested. The {@code skip} method of
+     *         this {@code InputStream} is guaranteed to skip as many bytes as asked or until there are no more.
      * 
      * @see BinaryReadQuery#retrieve(IRI, BoundStatement)
      */
-    public InputStream execute(IRI id) {
+    public CompletionStage<InputStream> execute(IRI id) {
         BoundStatement bound = preparedStatement().bind().set("identifier", id, IRI.class);
         return retrieve(id, bound);
     }

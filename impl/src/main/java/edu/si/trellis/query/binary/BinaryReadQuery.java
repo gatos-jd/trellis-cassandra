@@ -1,6 +1,5 @@
 package edu.si.trellis.query.binary;
 
-import static java.util.stream.StreamSupport.stream;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
@@ -9,10 +8,14 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 
 import edu.si.trellis.LazyChunkInputStream;
+import edu.si.trellis.query.AsyncResultSetSpliterator;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.stream.StreamSupport;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.rdf.api.IRI;
@@ -36,23 +39,27 @@ abstract class BinaryReadQuery extends BinaryQuery {
         this.readChunkStatement = session.prepare(READ_CHUNK_QUERY);
     }
 
-    //@formatter:off
     /**
-     * @param id an {@link IRI} for a binary 
+     * @param id an {@link IRI} for a binary
      * @param statement a CQL query that retrieves the chunk indexes of chunks for {@code id}
-     * @return An {@link InputStream} of bytes as requested. The {@code skip} method of this {@code InputStream} is
-     *         guaranteed to skip as many bytes as asked.
+     * @return A {@link CompletionStage} of an {@link InputStream} of bytes as requested. The {@code skip} method of
+     *         this {@code InputStream} is guaranteed to skip as many bytes as asked or until there are no more.
      */
-    protected InputStream retrieve(IRI id, BoundStatement statement) {
-        return stream(executeSyncRead(statement).spliterator(), false)
-                        .mapToInt(r -> r.getInt("chunkIndex"))
-                        .mapToObj(chunkIndex -> readChunkStatement.bind()
-                                            .setInt("chunkIndex", chunkIndex)
-                                            .set("identifier", id, IRI.class))
-                        .peek(chunkIndex -> log.debug("Retrieving stream for chunk: {}", chunkIndex))
-                        .<InputStream> map(s -> new LazyChunkInputStream(session, s))
-                        .reduce(SequenceInputStream::new) // chunks now in one large stream
-                        .orElseThrow(() -> new RuntimeTrellisException("Binary not found under IRI: " + id.getIRIString()));
+    //@formatter:off
+    protected CompletionStage<InputStream> retrieve(IRI id, BoundStatement statement) {
+        return executeRead(statement).thenApply(AsyncResultSetSpliterator::new)
+                        .thenApply(results -> StreamSupport.stream(results, false))
+                        .thenApplyAsync(stream -> stream
+                            .mapToInt(r -> r.getInt("chunkIndex"))
+                            .mapToObj(chunkIndex -> readChunkStatement.bind()
+                                                .setInt("chunkIndex", chunkIndex)
+                                                .set("identifier", id, IRI.class))
+                            .peek(chunkIndex -> log.debug("Retrieving stream for chunk: {}", chunkIndex))
+                            .<InputStream> map(s -> new LazyChunkInputStream(session, s))
+                            .reduce(SequenceInputStream::new) // chunks now in one large stream
+                            .orElseThrow(() ->
+                                new RuntimeException("Binary not found under IRI: " + id.getIRIString())),
+                         readWorkers);
     }
     //@formatter:on
 

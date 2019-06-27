@@ -3,10 +3,12 @@ package edu.si.trellis;
 import static java.util.Objects.requireNonNull;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.Row;
 
 import java.io.InputStream;
+import java.util.concurrent.CompletionStage;
 
 /**
  * An {@link InputStream} backed by a Cassandra query to retrieve one binary chunk.
@@ -18,22 +20,19 @@ import java.io.InputStream;
  */
 public class LazyChunkInputStream extends LazyFilterInputStream {
 
-    private final CqlSession session;
-
-    private final BoundStatement query;
+    private final CompletionStage<AsyncResultSet> futureData;
 
     /**
      * @param session The Cassandra session to use
      * @param query the CQL query to use
      */
     public LazyChunkInputStream(CqlSession session, BoundStatement query) {
-        this.session = session;
-        this.query = query;
+        this.futureData = session.executeAsync(query);
     }
 
     @Override
     protected void initialize() {
-        Row row = requireNonNull(session.execute(query).one(), "Missing binary chunk!");
+        Row row = requireNonNull(futureData.toCompletableFuture().join().one(), "Missing binary chunk!");
         wrap(row.get("chunk", InputStream.class));
     }
 }

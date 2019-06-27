@@ -1,5 +1,6 @@
 package edu.si.trellis;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -8,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 
 import java.io.IOException;
@@ -30,7 +31,7 @@ class LazyChunkInputStreamTest {
     private BoundStatement mockQuery;
 
     @Mock
-    private ResultSet mockResultSet;
+    private AsyncResultSet mockResultSet;
 
     @Mock
     private Row mockRow;
@@ -45,7 +46,7 @@ class LazyChunkInputStreamTest {
     @Test
     void badQuery() {
         RuntimeException e = new RuntimeException("Expected");
-        when(mockSession.execute(mockQuery)).thenThrow(e);
+        when(mockSession.executeAsync(mockQuery)).thenThrow(e);
         try (LazyChunkInputStream testLazyChunkInputStream = new LazyChunkInputStream(mockSession, mockQuery)) {
             testLazyChunkInputStream.read();
         } catch (Exception e1) {
@@ -55,7 +56,7 @@ class LazyChunkInputStreamTest {
 
     @Test
     void noData() {
-        when(mockSession.execute(mockQuery)).thenReturn(mockResultSet);
+        when(mockSession.executeAsync(mockQuery)).thenReturn(completedFuture(mockResultSet));
         when(mockResultSet.one()).thenReturn(null);
 
         try (LazyChunkInputStream testLazyChunkInputStream = new LazyChunkInputStream(mockSession, mockQuery)) {
@@ -68,7 +69,7 @@ class LazyChunkInputStreamTest {
 
     @Test
     void normalOperation() throws IOException {
-        when(mockSession.execute(mockQuery)).thenReturn(mockResultSet);
+        when(mockSession.executeAsync(mockQuery)).thenReturn(completedFuture(mockResultSet));
         when(mockResultSet.one()).thenReturn(mockRow);
         when(mockRow.get("chunk", InputStream.class)).thenReturn(mockInputStream);
 
