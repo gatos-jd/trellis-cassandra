@@ -1,20 +1,25 @@
 package edu.si.trellis.query.rdf;
 
+import static org.trellisldp.api.TrellisUtils.toDataset;
+
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.Row;
 
 import edu.si.trellis.ResyncResultSet;
+import edu.si.trellis.query.AsyncResultSetSpliterator;
 import edu.si.trellis.query.CassandraQuery;
 
 import java.util.Spliterator;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.commons.rdf.api.Dataset;
 import org.apache.commons.rdf.api.Quad;
+import org.trellisldp.api.TrellisUtils;
 
 /**
  * A query for use by individual resources to retrieve their contents.
@@ -33,10 +38,11 @@ abstract class ResourceQuery extends CassandraQuery {
         super(session, queryString, consistency);
     }
 
-    protected Stream<Quad> quads(final BoundStatement boundStatement) {
-        Spliterator<Row> rows = executeSyncRead(boundStatement).spliterator();
-        Stream<Dataset> datasets = StreamSupport.stream(rows, false).map(r -> r.get("quads", Dataset.class));
-        return datasets.flatMap(Dataset::stream);
+    protected CompletionStage<Dataset> quads(final BoundStatement boundStatement) {
+        CompletionStage<Stream<Dataset>> datasets = executeRead(boundStatement)
+                        .thenApply(AsyncResultSetSpliterator::new)
+                        .thenApply(rows -> StreamSupport.stream(rows, false).map(r -> r.get("quads", Dataset.class)));
+        return datasets.thenApply(s -> s.flatMap(Dataset::stream).collect(toDataset()));
     }
 
 }

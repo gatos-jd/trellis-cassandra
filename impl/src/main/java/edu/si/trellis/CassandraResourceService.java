@@ -73,12 +73,6 @@ public class CassandraResourceService extends CassandraBuildingService implement
 
     private final Touch touch;
 
-    private final BasicContainment bcontainment;
-
-    private final MutableRetrieve mutableRetrieve;
-
-    private final ImmutableRetrieve immutableRetrieve;
-
     /**
      * Constructor.
      * 
@@ -93,17 +87,14 @@ public class CassandraResourceService extends CassandraBuildingService implement
      */
     @Inject
     public CassandraResourceService(Delete delete, Get get, ImmutableInsert immutableInsert,
-                    MutableInsert mutableInsert, Touch touch, MutableRetrieve mutableRetrieve,
-                    ImmutableRetrieve immutableRetrieve, BasicContainment bcontainment) {
+                    MutableInsert mutableInsert, Touch touch, ImmutableRetrieve immutableRetrieve,
+                    BasicContainment bcontainment) {
+        super(immutableRetrieve, bcontainment);
         this.delete = delete;
         this.get = get;
         this.immutableInsert = immutableInsert;
         this.mutableInsert = mutableInsert;
         this.touch = touch;
-        this.mutableRetrieve = mutableRetrieve;
-        this.immutableRetrieve = immutableRetrieve;
-        this.bcontainment = bcontainment;
-
     }
 
     /**
@@ -188,8 +179,7 @@ public class CassandraResourceService extends CassandraBuildingService implement
 
     @Override
     Resource construct(IRI id, IRI ixnModel, boolean hasAcl, IRI binaryId, String mimeType, IRI container,
-                    Instant modified) {
-        return new CassandraResource(id, ixnModel, hasAcl, binaryId, mimeType, container, modified, immutableRetrieve,
-                        mutableRetrieve, bcontainment);
+                    Instant modified, Dataset dataset) {
+        return new CassandraResource(id, ixnModel, hasAcl, binaryId, mimeType, container, modified, dataset);
     }
 }

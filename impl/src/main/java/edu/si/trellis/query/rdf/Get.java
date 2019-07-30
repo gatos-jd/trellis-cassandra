@@ -20,7 +20,7 @@ public class Get extends ResourceQuery {
     @Inject
     public Get(CqlSession session, @MutableReadConsistency ConsistencyLevel consistency) {
         super(session, "SELECT "
-                        + " identifier, interactionModel, hasAcl, binaryIdentifier, mimeType, container, modified "
+                        + " identifier, interactionModel, hasAcl, binaryIdentifier, mimeType, container, modified, dataset "
                         + " FROM " + MUTABLE_TABLENAME + " WHERE identifier = :identifier;", consistency);
     }
 

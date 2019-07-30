@@ -2,9 +2,12 @@ package edu.si.trellis.query.rdf;
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 
 import edu.si.trellis.MutableReadConsistency;
+
+import java.util.concurrent.CompletionStage;
 
 import javax.inject.Inject;
 
@@ -25,7 +28,7 @@ public class BasicContainment extends ResourceQuery {
      * @param id the {@link IRI} of the container
      * @return a {@link ResultSet} of the resources contained in {@code id}
      */
-    public ResultSet execute(IRI id) {
-        return executeSyncRead(preparedStatement().bind().set("container", id, IRI.class));
+    public CompletionStage<AsyncResultSet> execute(IRI id) {
+        return executeRead(preparedStatement().bind().set("container", id, IRI.class));
     }
 }

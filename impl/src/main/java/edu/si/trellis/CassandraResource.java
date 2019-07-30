@@ -21,6 +21,7 @@ import java.util.Spliterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.commons.rdf.api.Dataset;
 import org.apache.commons.rdf.api.IRI;
 import org.apache.commons.rdf.api.Quad;
 import org.apache.commons.rdf.api.RDF;
@@ -36,22 +37,17 @@ class CassandraResource implements Resource {
     private final IRI identifier, container, interactionModel;
 
     private final boolean hasAcl, isContainer;
+    
+    private final Dataset dataset;
 
     private final Instant modified;
 
     private final BinaryMetadata binary;
 
-    private final ImmutableRetrieve immutable;
-
-    private final MutableRetrieve mutable;
-
-    private final BasicContainment bcontainment;
-
     private static final RDF rdfFactory = TrellisUtils.getInstance();
 
     public CassandraResource(IRI id, IRI ixnModel, boolean hasAcl, IRI binaryIdentifier, String mimeType, IRI container,
-                    Instant modified, ImmutableRetrieve immutable, MutableRetrieve mutable,
-                    BasicContainment bcontainment) {
+                    Instant modified, Dataset dataset) {
         this.identifier = id;
         this.interactionModel = ixnModel;
         this.isContainer = Container.equals(getInteractionModel())
@@ -63,9 +59,7 @@ class CassandraResource implements Resource {
         boolean isBinary = NonRDFSource.equals(getInteractionModel());
         this.binary = isBinary ? builder(binaryIdentifier).mimeType(mimeType).build() : null;
         log.trace("Resource is {}a NonRDFSource.", !isBinary ? "not " : "");
-        this.mutable = mutable;
-        this.immutable = immutable;
-        this.bcontainment = bcontainment;
+        this.dataset = dataset;
     }
 
     @Override
@@ -103,31 +97,12 @@ class CassandraResource implements Resource {
 
     @Override
     public Stream<Quad> stream() {
-        log.trace("Retrieving quad stream for resource {}", getIdentifier());
-        Stream<Quad> quads = concat(mutableQuads(), immutableQuads());
-        if (isContainer) {
-            Stream<Quad> containmentQuads = basicContainmentQuads();
-            quads = concat(quads, containmentQuads);
-        }
-        return quads;
+        return (Stream<Quad>) dataset.stream();
     }
 
-    /**
-     * @return the quads stored via mutable data paths, either current or Memento
-     */
-    protected Stream<Quad> mutableQuads() {
-        return mutable.execute(getIdentifier());
-    }
-
-    private Stream<Quad> immutableQuads() {
-        return immutable.execute(getIdentifier());
-    }
-
-    protected Stream<Quad> basicContainmentQuads() {
-        Spliterator<Row> rows = bcontainment.execute(getIdentifier()).spliterator();
-        Stream<IRI> contained = StreamSupport.stream(rows, false).map(r -> r.get("contained", IRI.class));
-        return contained.distinct().map(c -> rdfFactory.createQuad(PreferContainment, getIdentifier(), contains, c))
-                        .peek(t -> log.trace("Built containment quad: {}", t));
+    @Override
+    public Dataset dataset() {
+        return dataset;
     }
     
     /**
@@ -138,7 +113,7 @@ class CassandraResource implements Resource {
      */
     @Override
     public Stream<Quad> stream(IRI graphName) {
-        if (graphName.equals(PreferContainment)) return basicContainmentQuads();
+        if (graphName.equals(PreferContainment)) return basicContainmentQuads(getIdentifier());
         return Resource.super.stream(graphName);
     }
 }

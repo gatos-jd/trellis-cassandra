@@ -50,6 +50,7 @@ public class CassandraMementoService extends CassandraBuildingService implements
     @Inject
     public CassandraMementoService(Mementos mementos, Mementoize mementoize, GetMemento getMemento,
                     MementoMutableRetrieve mementoMutableRetrieve, ImmutableRetrieve immutableRetrieve) {
+       super(immutableRetrieve, bcontainment);
         this.mementos = mementos;
         this.mementoize = mementoize;
         this.getMemento = getMemento;
@@ -97,8 +98,8 @@ public class CassandraMementoService extends CassandraBuildingService implements
 
     @Override
     Resource construct(IRI id, IRI ixnModel, boolean hasAcl, IRI binaryId, String mimeType, IRI container,
-                    Instant modified) {
+                    Instant modified, Dataset dataset) {
         return new CassandraMemento(id, ixnModel, hasAcl, binaryId, mimeType, container, modified, immutableRetrieve,
-                        mementoMutableRetrieve);
+                        mementoMutableRetrieve, dataset);
     }
 }
