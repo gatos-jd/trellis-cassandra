@@ -1,4 +1,5 @@
 language: java
+dist: bionic
 
 # required to use Travis' Cassandra service
 # https://docs.travis-ci.com/user/database-setup/#cassandra
@@ -7,45 +8,37 @@ sudo: required
 addons:
   sonarcloud:
     organization: trellis-ldp
+  apt:
+    update: true
 
 cache:
   directories:
     - $HOME/.m2/repository
 
-env:
-  - JAVA_OPTS="-Xmx2048m"
+jobs:
+    fast_finish: true
 
-matrix:
-  fast_finish: true
+    include:
+        - name: "Java 8"
+          jdk: openjdk8
+          dist: xenial
+          # load our schema
+          before_script: src/test/resources/load.sh
 
-  include:
-    - jdk: openjdk8
-
-    - jdk: openjdk11
-
-  allow_failures:
-    - jdk: openjdk11
-    
 # install Casssandra "manually" to ensure the presence of nodetool
 before_install:
   - echo "deb http://www.apache.org/dist/cassandra/debian 311x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
   - curl https://www.apache.org/dist/cassandra/KEYS | sudo apt-key add -
+  - export JAVA_OPTS="-Dmx2048m"
   - sudo apt-get update
   - sudo apt-get install cassandra
-  - sudo service cassandra start 
-
-addons:
-  apt:
-    update: true
+  - sudo service cassandra start
 
 install: mvn --quiet -Dcargo.maven.skip -Dcassandra.skip -DskipTests install
 
-# load our schema
-before_script: src/test/resources/load.sh
-
 # build
 # turn off Cassandra Maven plugin to use Travis' service instead
-script: mvn -Dcassandra.skip -Dcassandra.nativeTransportPort=9042 install
+script: mvn clean -Dcassandra.skip -Dcassandra.nativeTransportPort=9042 -DskipITs install
 
 # in case of failure, spew reports
 after_failure:
@@ -55,3 +48,4 @@ after_failure:
   - cat impl/target/logs/system.log
   - cat webapp/target/logs/system.log
   - cat integration-tests/target/logs/system.log
+
